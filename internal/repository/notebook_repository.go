@@ -6,6 +6,7 @@ import (
 	"ai-notetaking-be/pkg/database"
 	"context"
 	"errors"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
@@ -17,6 +18,8 @@ type INotebookRepository interface {
 	Create(ctx context.Context, notebook *entity.Notebook) error
 	GetById(ctx context.Context, id uuid.UUID) (*entity.Notebook, error)
 	Update(ctx context.Context, notebook *entity.Notebook) error
+	DeleteById(ctx context.Context, id uuid.UUID) error
+	NulifyParentIdById(ctx context.Context, parentId uuid.UUID) error
 }
 
 type notebookRepository struct {
@@ -94,6 +97,36 @@ func (n *notebookRepository) Update(ctx context.Context, notebook *entity.Notebo
 
 	if cmdTag.RowsAffected() == 0 {
 		return serverutils.ErrNotFound
+	}
+
+	return nil
+}
+
+func (n *notebookRepository) DeleteById(ctx context.Context, id uuid.UUID) error {
+	_, err := n.db.Exec(
+		ctx,
+		`Update notebook SET is_deleted = true, deleted_at = $1 WHERE id = $2`,
+		time.Now(),
+		id,
+	)
+
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (n *notebookRepository) NulifyParentIdById(ctx context.Context, parentId uuid.UUID) error {
+	_, err := n.db.Exec(
+		ctx,
+		`Update notebook SET parent_id = null, updated_at = $1 WHERE parent_id = $2`,
+		time.Now(),
+		parentId,
+	)
+
+	if err != nil {
+		return err
 	}
 
 	return nil
