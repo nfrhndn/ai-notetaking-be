@@ -16,6 +16,7 @@ type INotebookRepository interface {
 	UsingTx(ctx context.Context, tx database.DatabaseQueryer) INotebookRepository
 	Create(ctx context.Context, notebook *entity.Notebook) error
 	GetById(ctx context.Context, id uuid.UUID) (*entity.Notebook, error)
+	Update(ctx context.Context, notebook *entity.Notebook) error
 }
 
 type notebookRepository struct {
@@ -71,6 +72,31 @@ func (n *notebookRepository) GetById(ctx context.Context, id uuid.UUID) (*entity
 		return nil, err
 	}
 	return &notebook, nil
+}
+
+func (n *notebookRepository) Update(ctx context.Context, notebook *entity.Notebook) error {
+	cmdTag, err := n.db.Exec(
+		ctx,
+		`UPDATE notebook SET 
+			name = $1,
+			parent_id = $2,
+			updated_at = $3
+		WHERE id = $4 AND is_deleted = false`,
+		notebook.Name,
+		notebook.ParentId,
+		notebook.UpdatedAt,
+		notebook.Id,
+	)
+
+	if err != nil {
+		return err
+	}
+
+	if cmdTag.RowsAffected() == 0 {
+		return serverutils.ErrNotFound
+	}
+
+	return nil
 }
 
 func NewNotebookRepository(db *pgxpool.Pool) INotebookRepository {
